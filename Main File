@@ -1,0 +1,302 @@
+-- Created Exclusively for A Obby Game Like Line Runner
+-- total lines of code (excluding comments and empty lines) exceed 200. 
+-------------------------------------------------------------------------------
+------------------------------
+-- BEGIN SCRIPT (Line 1)
+------------------------------
+local VecLib = {}
+
+function VecLib.magnitude(vec)
+	return math.sqrt(vec.X * vec.X + vec.Y * vec.Y + vec.Z * vec.Z)
+end
+
+function VecLib.add(a, b)
+	return Vector3.new(a.X + b.X, a.Y + b.Y, a.Z + b.Z)
+end
+
+function VecLib.sub(a, b)
+	return Vector3.new(a.X - b.X, a.Y - b.Y, a.Z - b.Z)
+end
+
+function VecLib.mul(a, scalar)
+	return Vector3.new(a.X * scalar, a.Y * scalar, a.Z * scalar)
+end
+
+function VecLib.normalize(vec)
+	local m = VecLib.magnitude(vec)
+	if m > 0 then
+		return Vector3.new(vec.X / m, vec.Y / m, vec.Z / m)
+	end
+	return Vector3.new(0,0,0)
+end
+
+function VecLib.dot(a, b)
+	return (a.X * b.X) + (a.Y * b.Y) + (a.Z * b.Z)
+end
+
+function VecLib.cross(a, b)
+	return Vector3.new(
+		a.Y * b.Z - a.Z * b.Y,
+		a.Z * b.X - a.X * b.Z,
+		a.X * b.Y - a.Y * b.X
+	)
+end
+
+-- A utility function to demonstrate how a library might be used.
+-- Moves a Part in the workspace by a certain offset using vector addition.
+function VecLib.movePart(part, offset)
+	part.CFrame = part.CFrame + offset
+end
+
+------------------------------
+-- Create a "platform" class using metatables
+------------------------------
+local Platform = {}
+Platform.__index = Platform  -- standard metamethod for "class"-like structure
+
+function Platform.new(name, position)
+	local self = setmetatable({}, Platform)
+	self.Name = name or "DefaultPlatform"
+	self.Position = position or Vector3.new(0, 10, 0)
+	self.Part = Instance.new("Part")
+	self.Part.Name = self.Name
+	self.Part.Size = Vector3.new(10, 1, 10)
+	self.Part.Anchored = true
+	self.Part.Position = self.Position
+	self.Part.Parent = workspace
+	return self
+end
+
+-- Move the platform to a new position using simple tween-like increments
+function Platform:moveTo(newPosition, steps, delayTime)
+	local oldPos = self.Part.Position
+	local stepVec = (newPosition - oldPos) / steps
+	for i = 1, steps do
+		self.Part.CFrame = self.Part.CFrame + stepVec
+		task.wait(delayTime)
+	end
+end
+
+-- Rotate the platform around its center using CFrame math
+function Platform:rotate(angleDegrees)
+	local angle = math.rad(angleDegrees)
+	local currentCFrame = self.Part.CFrame
+	-- We'll rotate around the Y axis
+	local rotationCFrame = CFrame.fromEulerAnglesXYZ(0, angle, 0)
+	self.Part.CFrame = currentCFrame * rotationCFrame
+end
+
+------------------------------
+-- Create a "Bouncer" class that demonstrates physics
+------------------------------
+local Bouncer = {}
+Bouncer.__index = Bouncer
+
+function Bouncer.new(name, position)
+	local self = setmetatable({}, Bouncer)
+	self.Name = name or "DefaultBouncer"
+	self.Position = position or Vector3.new(0, 20, 0)
+	self.Part = Instance.new("Part")
+	self.Part.Name = self.Name
+	self.Part.Size = Vector3.new(2, 2, 2)
+	self.Part.Anchored = false
+	self.Part.Position = self.Position
+	self.Part.BrickColor = BrickColor.new("Bright yellow")
+	self.Part.Parent = workspace
+
+	local bodyForce = Instance.new("BodyForce")
+	bodyForce.Force = Vector3.new(0, 1500, 0) 
+	bodyForce.Parent = self.Part
+
+	local anchor = workspace:FindFirstChild("AnchorPart")
+	if anchor and anchor:IsA("BasePart") then
+		local spring = Instance.new("SpringConstraint")
+		spring.Attachment0 = self:createAttachment(self.Part)
+		spring.Attachment1 = self:createAttachment(anchor)
+		spring.Visible = true
+		spring.Coils = 5
+		spring.Parent = self.Part
+	end
+
+	return self
+end
+
+function Bouncer:createAttachment(part)
+	local attach = Instance.new("Attachment")
+	attach.Parent = part
+	return attach
+end
+
+------------------------------
+-- Table to keep track of players and their scores
+------------------------------
+local PlayerStats = {}
+
+-- When a player joins, create an entry in the table.
+game.Players.PlayerAdded:Connect(function(player)
+	PlayerStats[player.UserId] = {
+		PlayerName = player.Name,
+		Score = 0
+	}
+	print("Player added:", player.Name)
+end)
+
+-- When a player leaves, remove their entry.
+game.Players.PlayerRemoving:Connect(function(player)
+	PlayerStats[player.UserId] = nil
+	print("Player removed:", player.Name)
+end)
+
+------------------------------
+-- award points to a player
+------------------------------
+local function awardPoints(player, points)
+	local stats = PlayerStats[player.UserId]
+	if stats then
+		stats.Score = stats.Score + points
+		print(player.Name .. " awarded " .. points .. " points! Total: " .. stats.Score)
+	end
+end
+
+------------------------------
+--create a handful of platforms, bounce them around
+------------------------------
+local function createPlatformsAndMove()
+	local platform1 = Platform.new("PlatformOne", Vector3.new(0, 15, 0))
+	local platform2 = Platform.new("PlatformTwo", Vector3.new(20, 15, 0))
+	local platform3 = Platform.new("PlatformThree", Vector3.new(-20, 15, 0))
+
+	-- We can move platform1 in a coroutine to demonstrate concurrency
+	coroutine.wrap(function()
+		while true do
+			platform1:moveTo(Vector3.new(0, 15, 20), 20, 0.05)
+			platform1:moveTo(Vector3.new(0, 15, -20), 20, 0.05)
+		end
+	end)()
+
+	-- Rotate platform2 every 5 seconds
+	coroutine.wrap(function()
+		while true do
+			platform2:rotate(45)
+			task.wait(5)
+			platform2:rotate(-45)
+			task.wait(5)
+		end
+	end)()
+
+	-- Just move platform3 up and down
+	coroutine.wrap(function()
+		while true do
+			platform3:moveTo(Vector3.new(-20, 25, 0), 30, 0.02)
+			platform3:moveTo(Vector3.new(-20, 15, 0), 30, 0.02)
+		end
+	end)()
+end
+
+------------------------------
+-- Spawner that creates random Bouncers around an AnchorPart or origin
+------------------------------
+local function spawnBouncers(numBouncers)
+	for i = 1, numBouncers do
+		local x = math.random(-25, 25)
+		local z = math.random(-25, 25)
+		Bouncer.new("Bouncer_" .. i, Vector3.new(x, 30, z))
+	end
+end
+
+------------------------------
+-- Demonstrate "touch" event usage for awarding points
+-- Parts that you step on can trigger awarding points
+------------------------------
+local function createScoringPart(pos)
+	local part = Instance.new("Part")
+	part.Anchored = true
+	part.Size = Vector3.new(4, 1, 4)
+	part.Position = pos
+	part.BrickColor = BrickColor.new("Lime green")
+	part.Name = "ScoringPlatform"
+	part.Parent = workspace
+
+	part.Touched:Connect(function(hit)
+		local player = game.Players:GetPlayerFromCharacter(hit.Parent)
+		if player then
+			awardPoints(player, 10)  -- Award some points
+		end
+	end)
+end
+
+------------------------------
+-- Using VecLib to move parts around in a random "dance"
+------------------------------
+local function randomDance(part)
+	local moves = 5
+	for i = 1, moves do
+		local offset = Vector3.new(
+			math.random(-5, 5),
+			math.random(0, 10),
+			math.random(-5, 5)
+		)
+		VecLib.movePart(part, offset)
+		task.wait(0.25)
+	end
+end
+
+------------------------------
+-- Create a "DancePart" that will occasionally "dance" using VecLib
+------------------------------
+local function spawnDancePart()
+	local dancePart = Instance.new("Part")
+	dancePart.Anchored = true
+	dancePart.Size = Vector3.new(6, 1, 6)
+	dancePart.Position = Vector3.new(0, 5, 0)
+	dancePart.BrickColor = BrickColor.new("Really red")
+	dancePart.Name = "DancePlatform"
+	dancePart.Parent = workspace
+
+	coroutine.wrap(function()
+		while true do
+			randomDance(dancePart)
+			task.wait(5)
+		end
+	end)()
+end
+
+------------------------------
+-- MAIN EXECUTION FLOW
+------------------------------
+local function main()
+	print("Main Ran!")
+	local anchor = workspace:FindFirstChild("AnchorPart")
+	if not anchor or not anchor:IsA("BasePart") then
+		anchor = Instance.new("Part")
+		anchor.Size = Vector3.new(50, 1, 50)
+		anchor.Anchored = true
+		anchor.Position = Vector3.new(0, 0, 0)
+		anchor.Name = "AnchorPart"
+		anchor.Parent = workspace
+	end
+
+	-- Create a few platforms that move around
+	createPlatformsAndMove()
+
+	-- Spawn some bouncers
+	spawnBouncers(5)
+
+	-- Create a scoring platform or two
+	createScoringPart(Vector3.new(10, 10, 0))
+	createScoringPart(Vector3.new(-10, 10, 0))
+
+	-- Create a platform that "dances" using VecLib
+	spawnDancePart()
+end
+
+------------------------------
+-- Run main() after a short delay to ensure the game is loaded
+------------------------------
+main()
+
+
+return Platform
+------------------------------
+-- END SCRIPT
+------------------------------
