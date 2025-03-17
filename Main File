@@ -293,7 +293,8 @@ end
 ------------------------------
 -- Run main() after a short delay to ensure the game is loaded
 ------------------------------
-task.delay(2,main)
+task.wait(2)
+main()
 
 
 return Platform
