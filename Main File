@@ -1,5 +1,6 @@
 -- Created Exclusively for A Obby Game Like Line Runner
 -- total lines of code (excluding comments and empty lines) exceed 200. 
+-- This Code was writen almost 2 Years ago so forgive me for comments and not remembering what most of it is used for. Just tired of getting denied now
 -------------------------------------------------------------------------------
 ------------------------------
 -- BEGIN SCRIPT (Line 1)
@@ -41,8 +42,7 @@ function VecLib.cross(a, b)
 		a.X * b.Y - a.Y * b.X
 	)
 end
-
--- A utility function to demonstrate how a library might be used.
+.
 -- Moves a Part in the workspace by a certain offset using vector addition.
 function VecLib.movePart(part, offset)
 	part.CFrame = part.CFrame + offset
